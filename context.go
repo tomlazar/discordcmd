@@ -23,7 +23,7 @@ func newContextFromInteraction(s *discordgo.Session, i *discordgo.InteractionCre
 
 func (c *context) Ack() error {
 	return c.s.InteractionRespond(c.i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseAcknowledge,
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 	})
 }
 
