@@ -13,9 +13,9 @@ var (
 )
 
 type Commands struct {
-	log        log.Logger
-	handlers   map[string]CmdDef
-	commandIds map[string][]string
+	log  log.Logger
+	cmds map[string]*Command
+	ids  map[string][]string
 }
 
 func NewCommands(l log.Logger) *Commands {
@@ -24,40 +24,39 @@ func NewCommands(l log.Logger) *Commands {
 	}
 
 	return &Commands{
-		log:        l,
-		commandIds: map[string][]string{},
+		log: l,
+		ids: map[string][]string{},
 	}
 }
 
-func (c *Commands) TryAddCmd(h CmdDef) error {
-	cmd := h.Cmd()
-	if cmd == nil {
+func (c *Commands) TryAddCmd(h *Command) error {
+	if h.Def == nil {
 		return errors.Wrap(ErrInvalidApplicationCmd, "Cmd() must not return null")
 	}
-	if cmd.Name == "" {
+	if h.Def.Name == "" {
 		return errors.Wrap(ErrInvalidApplicationCmd, "Cmd() must have a valid name")
 	}
-	if c.handlers == nil {
-		c.handlers = map[string]CmdDef{}
+	if c.cmds == nil {
+		c.cmds = map[string]*Command{}
 	}
 
-	_, ok := c.handlers[cmd.Name]
+	_, ok := c.cmds[h.Def.Name]
 	if ok {
 		return errors.Wrap(ErrInvalidApplicationCmd, "two commands with the same name cannot be registered")
 	}
 
-	c.handlers[cmd.Name] = h
+	c.cmds[h.Def.Name] = h
 	return nil
 }
 
-func (c *Commands) AddCmd(h CmdDef) {
+func (c *Commands) AddCmd(h *Command) {
 	if err := c.TryAddCmd(h); err != nil {
 		panic(err.Error())
 	}
 }
 
 func (c *Commands) OnInteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	if h, ok := c.handlers[i.Data.Name]; ok {
+	if h, ok := c.cmds[i.Data.Name]; ok {
 		h.Run(newContextFromInteraction(s, i))
 	}
 }
@@ -83,14 +82,14 @@ func (c *Commands) OnGuildCreate(s *discordgo.Session, g *discordgo.GuildCreate)
 	}
 
 	// ensure new commands
-	for k, v := range c.handlers {
-		id, err := s.ApplicationCommandCreate(s.State.User.ID, g.Guild.ID, v.Cmd())
+	for k, v := range c.cmds {
+		id, err := s.ApplicationCommandCreate(s.State.User.ID, g.Guild.ID, v.Def)
 		if err != nil {
 			l.Log("err", err, "msg", "Cannot register the commands handler")
 		}
 		l.Log("msg", "added handler", "name", k)
 
-		c.commandIds[g.Guild.ID] = append(c.commandIds[g.Guild.ID], id.ID)
+		c.ids[g.Guild.ID] = append(c.ids[g.Guild.ID], id.ID)
 	}
 }
 
@@ -102,7 +101,7 @@ func (c *Commands) TryRegisterHandler(s *discordgo.Session) error {
 }
 
 func (c *Commands) Close(s *discordgo.Session) error {
-	for guild, ids := range c.commandIds {
+	for guild, ids := range c.ids {
 		for _, id := range ids {
 			err := s.ApplicationCommandDelete(s.State.User.ID, guild, id)
 			if err != nil {

@@ -2,7 +2,7 @@ package discordcmd
 
 import "github.com/bwmarrin/discordgo"
 
-type CmdDef interface {
-	Cmd() *discordgo.ApplicationCommand
-	Run(ctx Context)
+type Command struct {
+	Def *discordgo.ApplicationCommand
+	Run func(Context)
 }
