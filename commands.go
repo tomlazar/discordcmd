@@ -56,8 +56,17 @@ func (c *Commands) AddCmd(h *Command) {
 }
 
 func (c *Commands) OnInteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	if h, ok := c.cmds[i.Data.Name]; ok {
-		h.Run(newContextFromInteraction(s, i))
+	if i.Interaction == nil || i.Interaction.Type != discordgo.InteractionApplicationCommand {
+		return
+	}
+
+	icmd, ok := i.Interaction.Data.(*discordgo.ApplicationCommandInteractionData)
+	if !ok {
+		return
+	}
+
+	if h, ok := c.cmds[icmd.Name]; ok {
+		h.Run(newContextFromInteraction(s, i, icmd))
 	}
 }
 

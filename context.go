@@ -13,12 +13,17 @@ type Context interface {
 }
 
 type context struct {
-	s *discordgo.Session
-	i *discordgo.InteractionCreate
+	s    *discordgo.Session
+	i    *discordgo.InteractionCreate
+	icmd *discordgo.ApplicationCommandInteractionData
 }
 
-func newContextFromInteraction(s *discordgo.Session, i *discordgo.InteractionCreate) Context {
-	return &context{s: s, i: i}
+func newContextFromInteraction(
+	s *discordgo.Session,
+	i *discordgo.InteractionCreate,
+	icmd *discordgo.ApplicationCommandInteractionData,
+) Context {
+	return &context{s: s, i: i, icmd: icmd}
 }
 
 func (c *context) Ack() error {
@@ -30,7 +35,7 @@ func (c *context) Ack() error {
 func (c *context) Reply(str string) error {
 	return c.s.InteractionRespond(c.i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionApplicationCommandResponseData{
+		Data: &discordgo.InteractionResponseData{
 			Content: str,
 		},
 	})
@@ -38,7 +43,7 @@ func (c *context) Reply(str string) error {
 func (c *context) Embed(embed ...*discordgo.MessageEmbed) error {
 	return c.s.InteractionRespond(c.i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionApplicationCommandResponseData{
+		Data: &discordgo.InteractionResponseData{
 			Embeds: embed,
 		},
 	})
@@ -49,7 +54,7 @@ func (c *context) InteractionCreate() *discordgo.InteractionCreate { return c.i 
 func (c *context) Member() *discordgo.Member                       { return c.i.Member }
 
 func (c *context) String(key string) string {
-	for _, kv := range c.i.Data.Options {
+	for _, kv := range c.icmd.Options {
 		if kv.Name == key {
 			return kv.StringValue()
 		}
